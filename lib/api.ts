@@ -1,24 +1,9 @@
-/**
- * Cliente API centralizado para el backend Spring Boot.
- *
- * IMPORTANTE sobre el caché de Next.js:
- * - getMatches: sin caché (no-store). Los partidos cambian cada 5 minutos
- *   cuando el scheduler los sincroniza. Cachearlo escondería los cambios.
- * - getStandings: revalidate 3600s (1 hora). La clasificación cambia poco.
- * - getLeagues: revalidate 86400s (1 día). La lista de ligas no cambia nunca.
- */
-
 import type { League, Match, Page, StandingsResponse } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// ---------------------------------------------------------------------------
-// LIGAS
-// ---------------------------------------------------------------------------
-
 /**
- * Lista de competiciones soportadas.
- * Se cachea 24 horas — no cambia casi nunca.
+ * Lista de competiciones. Se cachea 24h — no cambia nunca.
  */
 export async function getLeagues(): Promise<League[]> {
   const response = await fetch(`${API_URL}/leagues`, {
@@ -27,10 +12,6 @@ export async function getLeagues(): Promise<League[]> {
   if (!response.ok) throw new Error(`Error ligas: ${response.status}`)
   return response.json()
 }
-
-// ---------------------------------------------------------------------------
-// PARTIDOS
-// ---------------------------------------------------------------------------
 
 export interface MatchFilters {
   competition?: string
@@ -41,9 +22,7 @@ export interface MatchFilters {
 }
 
 /**
- * Partidos con filtros.
- * SIN caché de Next.js (cache: 'no-store') para siempre mostrar
- * los datos más recientes del backend.
+ * Partidos. Sin caché — siempre frescos del backend.
  */
 export async function getMatches(filters: MatchFilters = {}): Promise<Page<Match>> {
   const params = new URLSearchParams()
@@ -54,23 +33,29 @@ export async function getMatches(filters: MatchFilters = {}): Promise<Page<Match
   if (filters.size != null) params.set('size', String(filters.size))
 
   const response = await fetch(`${API_URL}/matches?${params}`, {
-    cache: 'no-store' // ← Siempre frescos, nunca cacheados en Next.js
+    cache: 'no-store'
   })
   if (!response.ok) throw new Error(`Error partidos: ${response.status}`)
   return response.json()
 }
 
-// ---------------------------------------------------------------------------
-// CLASIFICACIÓN
-// ---------------------------------------------------------------------------
-
 /**
- * Clasificación de una competición.
- * Cacheada 1 hora en Next.js — el backend ya la cachea 60 min con Caffeine,
- * así que esta capa es redundante pero protege ante picos de tráfico.
+ * Clasificación.
+ *
+ * Estrategia de caché en dos capas:
+ * - Backend (Caffeine): cachea 60 min → protege el límite de la API externa.
+ *   Se invalida con @CacheEvict cuando se hace sync de partidos.
+ * - Next.js: revalida cada 5 min → garantiza que cuando el backend
+ *   tenga datos nuevos (tras un sync), el frontend los recoge pronto.
+ *
+ * La combinación es eficiente: football-data.org se llama como máximo
+ * 1 vez/hora por competición, pero el navegador siempre ve datos frescos.
  */
 export async function getStandings(competition = 'PD'): Promise<StandingsResponse> {
-  const response = await fetch(`${API_URL}/standings?competition=${competition}`, { next: { revalidate: 3_600 } })
+  const response = await fetch(
+    `${API_URL}/standings?competition=${competition}`,
+    { next: { revalidate: 300 } } // ← 5 min, antes era 3600 (1 hora)
+  )
   if (!response.ok) throw new Error(`Error standings: ${response.status}`)
   return response.json()
 }

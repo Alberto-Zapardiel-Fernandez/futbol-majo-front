@@ -1,6 +1,7 @@
 import AutoSyncTrigger from '@/components/AutoSyncTrigger'
 import LeagueSelector from '@/components/LeagueSelector'
 import MatchCard from '@/components/MatchCard'
+import AutoRefresh from '@/components/AutoRefresh'
 import MatchdayNavigator from '@/components/MatchDayNavigator'
 import { getLeagues, getMatches } from '@/lib/api'
 import { LEAGUE_VISUALS } from '@/lib/leagues'
@@ -37,6 +38,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <div className='space-y-5'>
+      <AutoRefresh intervalMs={300_000} />
       {/* Error de conexión con el backend */}
       {backendError && (
         <div className='bg-red-900/40 border border-red-700 rounded-xl p-4 text-red-300 text-sm'>

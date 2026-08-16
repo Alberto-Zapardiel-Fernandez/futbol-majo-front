@@ -1,8 +1,3 @@
-/**
- * Tarjeta visual de un partido.
- * Client Component por onError en Image, useState y useEffect.
- */
-
 'use client'
 
 import Image from 'next/image'
@@ -30,21 +25,52 @@ function formatDate(utcDate: string): string {
   })
 }
 
-function getElapsedMinutes(utcDate: string): number {
+/**
+ * Calcula el minuto REAL del partido descontando el descanso.
+ *
+ * Problema anterior: (ahora - inicio) / 60 da el tiempo de PARED (wall time),
+ * no el minuto real del partido. A los 70 min de pared el partido puede estar
+ * en el minuto 55 real (45 primera parte + 15 descanso + 10 segunda parte).
+ *
+ * Solución:
+ * - 0-48 min transcurridos  → primera parte, mostramos el minuto transcurrido
+ * - 48-65 min transcurridos → zona de descanso, mostramos 45 y la barra se para
+ * - 65+ min transcurridos   → segunda parte, restamos los ~17 min de descanso
+ *
+ * Si el status es PAUSED (backend lo confirma), siempre mostramos 45.
+ */
+function getMatchMinute(utcDate: string, status: MatchStatus): number {
+  if (status === 'PAUSED') return 45
+  if (status !== 'IN_PLAY') return 0
+
   const elapsed = Math.floor((Date.now() - new Date(utcDate).getTime()) / 60_000)
-  return Math.min(Math.max(elapsed, 1), 90)
+
+  const FIRST_HALF_END = 48 // 45 min + ~3 de añadido
+  const HALFTIME_END = 65 // 48 + ~17 min de descanso
+  const HALFTIME_LENGTH = 17 // minutos de descanso a descontar
+
+  if (elapsed <= FIRST_HALF_END) {
+    // Primera parte
+    return Math.max(elapsed, 1)
+  }
+
+  if (elapsed <= HALFTIME_END) {
+    // Zona de descanso — el backend aún no actualizó el status a PAUSED
+    // Mostramos 45 para no saltar al minuto 50/55 de golpe
+    return 45
+  }
+
+  // Segunda parte — restamos el descanso
+  const secondHalfMinute = 45 + (elapsed - HALFTIME_END)
+  return Math.min(secondHalfMinute, 90)
 }
 
 /**
- * Un partido está obsoleto cuando su estado en BD es IN_PLAY/PAUSED
- * pero han pasado más de 130 minutos desde el inicio.
- * Significa que el backend estaba apagado cuando terminó el partido
- * y el resultado final todavía no se ha sincronizado.
+ * Detecta datos obsoletos: partido marcado IN_PLAY pero han pasado >130 min.
  */
 function isStaleMatch(utcDate: string, status: MatchStatus): boolean {
   if (status !== 'IN_PLAY' && status !== 'PAUSED') return false
-  const elapsed = Date.now() - new Date(utcDate).getTime()
-  return elapsed > 130 * 60 * 1000
+  return Date.now() - new Date(utcDate).getTime() > 130 * 60 * 1000
 }
 
 // ---------------------------------------------------------------------------
@@ -67,21 +93,24 @@ function TeamCrest({ src, alt }: { src: string | null; alt: string }) {
   )
 }
 
-function ProgressBar({ minute }: { minute: number }) {
+function ProgressBar({ minute, paused }: { minute: number; paused: boolean }) {
   const pct = Math.min((minute / 90) * 100, 100)
   return (
     <div className='w-full bg-gray-700 rounded-full h-1.5 mt-2 relative overflow-visible'>
       <div
-        className='h-full rounded-full bg-green-500 transition-all duration-[30000ms] ease-linear'
+        className={`h-full rounded-full transition-all duration-[30000ms] ease-linear ${paused ? 'bg-yellow-500' : 'bg-green-500'}`}
         style={{ width: `${pct}%` }}
       />
-      <div
-        className='absolute top-1/2'
-        style={{ left: `${pct}%`, transform: 'translateX(-50%) translateY(-50%)' }}
-      >
-        <div className='w-3 h-3 rounded-full bg-green-400 animate-ping absolute inset-0 opacity-75' />
-        <div className='w-2 h-2 rounded-full bg-green-300 relative' />
-      </div>
+      {/* Punto pulsante solo cuando está en juego, no en descanso */}
+      {!paused && (
+        <div
+          className='absolute top-1/2'
+          style={{ left: `${pct}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+        >
+          <div className='w-3 h-3 rounded-full bg-green-400 animate-ping absolute inset-0 opacity-75' />
+          <div className='w-2 h-2 rounded-full bg-green-300 relative' />
+        </div>
+      )}
     </div>
   )
 }
@@ -93,44 +122,30 @@ function ProgressBar({ minute }: { minute: number }) {
 function MatchCenter({ match }: { match: Match }) {
   const { status, utcDate, score } = match
   const ft = score?.fullTime
+  const isPaused = status === 'PAUSED'
 
-  const [minute, setMinute] = useState(() => getElapsedMinutes(utcDate))
+  const [minute, setMinute] = useState(() => getMatchMinute(utcDate, status))
 
   useEffect(() => {
     if (status !== 'IN_PLAY') return
     const interval = setInterval(() => {
-      setMinute(getElapsedMinutes(utcDate))
+      setMinute(getMatchMinute(utcDate, status))
     }, 30_000)
     return () => clearInterval(interval)
   }, [status, utcDate])
 
-  // ── Datos obsoletos ──────────────────────────────────────────────────────
-  // El partido terminó pero el backend no actualizó el resultado.
-  // Mostramos lo que tenemos con un icono discreto, nada alarmante.
-  // El AutoRefresh de la página actualizará los datos en breve.
+  // Datos obsoletos
   if (isStaleMatch(utcDate, status)) {
-    const hasScore = ft?.home != null || ft?.away != null
     return (
       <div className='flex flex-col items-center gap-1 min-w-[100px]'>
         <div className='flex items-center gap-2'>
-          {hasScore ? (
-            <>
-              <span className='text-2xl font-black text-white tabular-nums'>{ft?.home}</span>
-              <span className='text-gray-500'>-</span>
-              <span className='text-2xl font-black text-white tabular-nums'>{ft?.away}</span>
-            </>
-          ) : (
-            <span className='text-xl font-bold text-gray-500'>- -</span>
-          )}
+          <span className='text-2xl font-black text-white tabular-nums'>{ft?.home ?? '-'}</span>
+          <span className='text-gray-500'>-</span>
+          <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? '-'}</span>
         </div>
-        {/*
-          Icono de sincronización discreto.
-          No dice "error" — dice que el resultado se actualizará pronto.
-          El sistema lo resolverá automáticamente en el siguiente ciclo de 5 min.
-        */}
         <span
           className='text-xs text-gray-600 font-medium'
-          title='El resultado se actualizará en el próximo ciclo de sincronización'
+          title='Actualizando...'
         >
           ↻ sincronizando
         </span>
@@ -138,8 +153,8 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
-  // ── En juego o descanso ──────────────────────────────────────────────────
-  if (status === 'IN_PLAY' || status === 'PAUSED') {
+  // En juego o descanso
+  if (status === 'IN_PLAY' || isPaused) {
     return (
       <div className='flex flex-col items-center gap-0.5 min-w-[100px]'>
         <div className='flex items-center gap-2'>
@@ -147,20 +162,28 @@ function MatchCenter({ match }: { match: Match }) {
           <span className='text-gray-500'>-</span>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? 0}</span>
         </div>
-        {status === 'PAUSED' ? (
-          <span className='text-xs font-semibold text-yellow-400'>Descanso</span>
+
+        {isPaused ? (
+          <span className='text-xs font-semibold text-yellow-400 flex items-center gap-1'>
+            <span className='w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block' />
+            Descanso
+          </span>
         ) : (
           <span className='text-xs font-semibold text-green-400 flex items-center gap-1'>
             <span className='w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block' />
             {minute}&apos;
           </span>
         )}
-        <ProgressBar minute={minute} />
+
+        <ProgressBar
+          minute={minute}
+          paused={isPaused}
+        />
       </div>
     )
   }
 
-  // ── Terminado ────────────────────────────────────────────────────────────
+  // Terminado
   if (status === 'FINISHED') {
     return (
       <div className='flex flex-col items-center gap-1 min-w-[100px]'>
@@ -174,7 +197,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
-  // ── Aplazado / cancelado / suspendido ────────────────────────────────────
+  // Aplazado / cancelado / suspendido
   if (['POSTPONED', 'CANCELLED', 'SUSPENDED'].includes(status)) {
     const labels: Record<string, string> = {
       POSTPONED: 'Aplazado',
@@ -188,7 +211,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
-  // ── Programado ────────────────────────────────────────────────────────────
+  // Programado
   return (
     <div className='flex flex-col items-center gap-1 min-w-[100px]'>
       <span className='text-2xl font-bold text-white tabular-nums'>{formatTime(utcDate)}</span>

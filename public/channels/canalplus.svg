@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 28">
+  <rect width="72" height="28" rx="4" fill="#111111"/>
+  <rect x="1" y="1" width="70" height="26" rx="3" fill="none" stroke="#444" stroke-width="0.5"/>
+  <text x="36" y="19" font-family="Arial Black,Helvetica,sans-serif" font-size="14" font-weight="900" text-anchor="middle" fill="#ffffff" letter-spacing="-0.5">Canal+</text>
+</svg>

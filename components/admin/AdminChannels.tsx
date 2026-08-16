@@ -31,7 +31,10 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [saving, setSaving] = useState<number | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
 
+  // ── Guardar canal de un partido ──────────────────────────────────────────
   const handleChannelChange = (matchId: number, channel: string) => {
     setSaving(matchId)
     startTransition(async () => {
@@ -44,13 +47,53 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
     })
   }
 
+  // ── Sync manual urgente ──────────────────────────────────────────────────
+  const handleForceSyncPD = async () => {
+    setSyncing(true)
+    setSyncMsg('')
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      const syncKey = process.env.NEXT_PUBLIC_ADMIN_SYNC_KEY
+      const res = await fetch(`${apiUrl}/admin/sync-now?league=PD&adminKey=${syncKey}`, { method: 'POST' })
+      const text = await res.text()
+      setSyncMsg(res.ok ? '✓ Sync completado' : `Error: ${text}`)
+      if (res.ok) router.refresh()
+    } catch {
+      setSyncMsg('Error de conexión con el backend')
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncMsg(''), 4000)
+    }
+  }
+
   return (
     <div className='space-y-4'>
-      {/* Cabecera con selector de jornada */}
-      <div className='flex items-center justify-between'>
+      {/* Cabecera */}
+      <div className='flex items-start justify-between gap-4'>
         <div>
           <h2 className='text-lg font-bold text-white'>Canales TV — LaLiga</h2>
-          <p className='text-xs text-gray-500 mt-0.5'>Asigna el canal donde se verá cada partido. Se muestra en la app automáticamente.</p>
+          <p className='text-xs text-gray-500 mt-0.5'>Asigna el canal donde se verá cada partido.</p>
+        </div>
+
+        {/* Botón sync urgente */}
+        <div className='flex flex-col items-end gap-1 shrink-0'>
+          <button
+            onClick={handleForceSyncPD}
+            disabled={syncing}
+            className='flex items-center gap-1.5 px-3 py-2 bg-red-700 hover:bg-red-600
+                       disabled:opacity-60 text-white text-xs font-bold rounded-lg
+                       transition-colors whitespace-nowrap'
+          >
+            {syncing ? (
+              <>
+                <div className='w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                Sincronizando...
+              </>
+            ) : (
+              '⚡ Sync LaLiga ahora'
+            )}
+          </button>
+          {syncMsg && <span className={`text-xs ${syncMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{syncMsg}</span>}
         </div>
       </div>
 
@@ -58,17 +101,19 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
       <div className='flex items-center gap-3 bg-gray-800/60 rounded-xl px-4 py-2.5 w-fit'>
         <a
           href={`/admin?seccion=canales&jornada=${Math.max(1, currentMatchDay - 1)}`}
-          className={`text-gray-400 hover:text-white text-lg px-1 ${currentMatchDay <= 1 ? 'opacity-30 pointer-events-none' : ''}`}
+          className={`text-gray-400 hover:text-white text-xl px-1 leading-none
+            ${currentMatchDay <= 1 ? 'opacity-30 pointer-events-none' : ''}`}
         >
           ‹
         </a>
-        <span className='text-sm font-bold text-white min-w-[80px] text-center'>
+        <span className='text-sm font-bold text-white min-w-[90px] text-center'>
           Jornada {currentMatchDay}
           <span className='text-gray-600 font-normal'> / {totalMatchDays}</span>
         </span>
         <a
           href={`/admin?seccion=canales&jornada=${Math.min(totalMatchDays, currentMatchDay + 1)}`}
-          className={`text-gray-400 hover:text-white text-lg px-1 ${currentMatchDay >= totalMatchDays ? 'opacity-30 pointer-events-none' : ''}`}
+          className={`text-gray-400 hover:text-white text-xl px-1 leading-none
+            ${currentMatchDay >= totalMatchDays ? 'opacity-30 pointer-events-none' : ''}`}
         >
           ›
         </a>
@@ -83,7 +128,7 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
       ) : (
         <div className='space-y-2'>
           {matches.map(match => {
-            const currentChannel = channelMap[match.id] ?? ''
+            const currentChannel = channelMap[match.id as keyof typeof channelMap] ?? ''
             const isSaving = saving === match.id
 
             return (
@@ -91,26 +136,26 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
                 key={match.id}
                 className='flex items-center gap-3 bg-gray-800 border border-gray-700 rounded-xl p-3'
               >
-                {/* Equipos */}
+                {/* Escudos + nombres */}
                 <div className='flex items-center gap-2 flex-1 min-w-0'>
                   {match.homeTeam.crest && (
                     <Image
                       src={match.homeTeam.crest}
                       alt={match.homeTeam.shortName}
-                      width={20}
-                      height={20}
+                      width={18}
+                      height={18}
                       className='object-contain shrink-0'
                     />
                   )}
                   <span className='text-sm font-medium text-white truncate'>{match.homeTeam.shortName}</span>
                   <span className='text-gray-600 text-xs shrink-0'>vs</span>
                   <span className='text-sm font-medium text-white truncate'>{match.awayTeam.shortName}</span>
-                  {match.homeTeam.crest && (
+                  {match.awayTeam.crest && (
                     <Image
                       src={match.awayTeam.crest}
                       alt={match.awayTeam.shortName}
-                      width={20}
-                      height={20}
+                      width={18}
+                      height={18}
                       className='object-contain shrink-0'
                     />
                   )}
@@ -119,7 +164,7 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
                 {/* Fecha y hora */}
                 <span className='text-xs text-gray-500 shrink-0 hidden sm:block'>{formatDateTime(match.utcDate)}</span>
 
-                {/* Badge actual */}
+                {/* Badge canal actual */}
                 {currentChannel && (
                   <ChannelBadge
                     channel={currentChannel as ChannelKey}
@@ -127,16 +172,14 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
                   />
                 )}
 
-                {/* Selector de canal */}
+                {/* Selector */}
                 <select
                   value={currentChannel}
                   onChange={e => handleChannelChange(match.id, e.target.value)}
                   disabled={isSaving || pending}
-                  className={`
-                    bg-gray-700 border border-gray-600 text-sm text-white rounded-lg
-                    px-2 py-1.5 min-w-[110px] focus:outline-none focus:ring-1 focus:ring-green-500
-                    disabled:opacity-50 transition-opacity
-                  `}
+                  className='bg-gray-700 border border-gray-600 text-sm text-white rounded-lg
+                             px-2 py-1.5 min-w-[120px] focus:outline-none focus:ring-1
+                             focus:ring-green-500 disabled:opacity-50'
                 >
                   <option value=''>— Sin canal —</option>
                   {CHANNEL_LIST.map(ch => (

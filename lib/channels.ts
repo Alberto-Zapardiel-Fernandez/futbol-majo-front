@@ -1,18 +1,11 @@
-/**
- * Canales de TV soportados con sus colores de marca.
- * Usamos badges estilizados en lugar de imágenes externas
- * para evitar problemas de copyright y links rotos.
- */
-
 export type ChannelKey = 'DAZN' | 'MOVISTAR_PLUS' | 'PRIME_VIDEO' | 'RTVE_PLAY' | 'CANAL_PLUS'
 
 export interface Channel {
   key: ChannelKey
   label: string
   shortLabel: string
-  bg: string // Tailwind bg class
-  text: string // Tailwind text class
-  border: string // Tailwind border class
+  logo: string // Ruta al SVG en /public/channels/
+  bg: string // Color de fondo para el contenedor del logo
 }
 
 export const CHANNELS: Record<ChannelKey, Channel> = {
@@ -20,41 +13,36 @@ export const CHANNELS: Record<ChannelKey, Channel> = {
     key: 'DAZN',
     label: 'DAZN',
     shortLabel: 'DAZN',
-    bg: 'bg-[#F5FF00]',
-    text: 'text-black',
-    border: 'border-[#d4dd00]'
+    logo: '/channels/dazn.svg',
+    bg: '#F5FF00'
   },
   MOVISTAR_PLUS: {
     key: 'MOVISTAR_PLUS',
     label: 'Movistar+',
     shortLabel: 'M+',
-    bg: 'bg-[#019df4]',
-    text: 'text-white',
-    border: 'border-[#0182cc]'
+    logo: '/channels/movistar.svg',
+    bg: '#019DF4'
   },
   PRIME_VIDEO: {
     key: 'PRIME_VIDEO',
     label: 'Prime Video',
     shortLabel: 'Prime',
-    bg: 'bg-[#00A8E0]',
-    text: 'text-white',
-    border: 'border-[#007faa]'
+    logo: '/channels/prime.svg',
+    bg: '#232F3E'
   },
   RTVE_PLAY: {
     key: 'RTVE_PLAY',
     label: 'RTVE Play',
     shortLabel: 'RTVE',
-    bg: 'bg-red-700',
-    text: 'text-white',
-    border: 'border-red-900'
+    logo: '/channels/rtve.svg',
+    bg: '#E62929'
   },
   CANAL_PLUS: {
     key: 'CANAL_PLUS',
     label: 'Canal+',
     shortLabel: 'C+',
-    bg: 'bg-gray-900',
-    text: 'text-white',
-    border: 'border-gray-600'
+    logo: '/channels/canalplus.svg',
+    bg: '#111111'
   }
 }
 

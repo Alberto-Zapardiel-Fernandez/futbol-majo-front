@@ -20,7 +20,21 @@ export interface Match {
   score: Score | null
 }
 
-export type MatchStatus = 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' | 'SUSPENDED'
+/**
+ * Estados posibles de un partido según la API de football-data.org.
+ * OJO: la API a veces devuelve "LIVE" en lugar de "IN_PLAY".
+ * Los tratamos igual en toda la lógica.
+ */
+export type MatchStatus =
+  | 'SCHEDULED'
+  | 'TIMED'
+  | 'IN_PLAY'
+  | 'LIVE' // ← equivale a IN_PLAY, lo devuelve el tier gratuito
+  | 'PAUSED'
+  | 'FINISHED'
+  | 'POSTPONED'
+  | 'CANCELLED'
+  | 'SUSPENDED'
 
 export interface League {
   code: string

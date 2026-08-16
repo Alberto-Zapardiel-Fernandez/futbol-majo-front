@@ -25,15 +25,31 @@ function formatDate(utcDate: string): string {
   })
 }
 
+/**
+ * Normaliza el estado del partido teniendo en cuenta:
+ * - 'LIVE' es equivalente a 'IN_PLAY' (lo devuelve football-data.org free tier)
+ * - Si el partido lleva >130 min desde el inicio, lo estimamos como terminado
+ * - Si hay score pero la API dice TIMED, claramente ya empezó
+ */
 function getEffectiveStatus(status: MatchStatus, utcDate: string, hasScore: boolean): EffectiveStatus {
-  if (status !== 'TIMED' && status !== 'SCHEDULED') return status
-
   const elapsedMin = (Date.now() - new Date(utcDate).getTime()) / 60_000
 
+  // LIVE y IN_PLAY son equivalentes
+  const isActuallyLive = status === 'IN_PLAY' || status === 'LIVE'
+
+  if (isActuallyLive) {
+    // Si llevan >130 min → el partido terminó pero la API no actualizó a FINISHED
+    if (elapsedMin > 130) return 'ESTIMATED_FINISHED'
+    return 'IN_PLAY' // Normalizamos LIVE → IN_PLAY para simplificar los renders
+  }
+
+  // El resto de estados reales los devolvemos tal cual
+  if (status !== 'TIMED' && status !== 'SCHEDULED') return status
+
+  // Para TIMED/SCHEDULED: estimamos según tiempo y si hay score
   if (hasScore) {
     return elapsedMin >= 90 ? 'ESTIMATED_FINISHED' : 'ESTIMATED_LIVE'
   }
-
   if (elapsedMin < 0) return status
   if (elapsedMin < 110) return 'ESTIMATED_LIVE'
   return 'ESTIMATED_FINISHED'
@@ -49,8 +65,10 @@ function getMatchMinute(utcDate: string, effectiveStatus: EffectiveStatus): numb
   return Math.min(45 + (elapsed - 65), 90)
 }
 
-function isStaleMatch(utcDate: string, status: MatchStatus): boolean {
-  if (status !== 'IN_PLAY' && status !== 'PAUSED') return false
+/** Solo para partidos que la API marcó IN_PLAY/LIVE/PAUSED pero >130 min después */
+function isStaleFromApi(status: MatchStatus, utcDate: string): boolean {
+  const isLiveStatus = status === 'IN_PLAY' || status === 'LIVE' || status === 'PAUSED'
+  if (!isLiveStatus) return false
   return Date.now() - new Date(utcDate).getTime() > 130 * 60 * 1000
 }
 
@@ -76,7 +94,7 @@ function ProgressBar({ minute, paused }: { minute: number; paused: boolean }) {
     <div className='w-full bg-gray-700 rounded-full h-1.5 mt-1.5 relative overflow-visible'>
       <div
         className={`h-full rounded-full transition-all duration-[30000ms] ease-linear
-          ${paused ? 'bg-yellow-500' : 'bg-green-500'}`}
+        ${paused ? 'bg-yellow-500' : 'bg-green-500'}`}
         style={{ width: `${pct}%` }}
       />
       {!paused && (
@@ -96,6 +114,7 @@ function MatchCenter({ match }: { match: Match }) {
   const { status, utcDate, score } = match
   const ft = score?.fullTime
   const hasScore = ft?.home != null || ft?.away != null
+  const stale = isStaleFromApi(status, utcDate)
 
   const effectiveStatus = getEffectiveStatus(status, utcDate, hasScore)
   const isPaused = effectiveStatus === 'PAUSED'
@@ -110,7 +129,9 @@ function MatchCenter({ match }: { match: Match }) {
     return () => clearInterval(interval)
   }, [effectiveStatus, utcDate])
 
-  if (isStaleMatch(utcDate, status)) {
+  // ── Partido que la API devolvió LIVE/IN_PLAY pero ya hace >130 min ──────
+  // Mostramos el score que tenemos (puede ser parcial) con aviso de actualización
+  if (stale) {
     return (
       <div className='flex flex-col items-center gap-1 min-w-[90px]'>
         <p className='text-[10px] text-gray-600'>{formatDate(utcDate)}</p>
@@ -119,11 +140,12 @@ function MatchCenter({ match }: { match: Match }) {
           <span className='text-gray-500'>-</span>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? '-'}</span>
         </div>
-        <span className='text-[10px] text-gray-600'>↻ actualizando</span>
+        <span className='text-[10px] text-gray-500'>↻ actualizando</span>
       </div>
     )
   }
 
+  // ── En juego (IN_PLAY real, normalizado desde LIVE) ─────────────────────
   if (effectiveStatus === 'IN_PLAY' || isPaused) {
     return (
       <div className='flex flex-col items-center gap-0.5 min-w-[90px]'>
@@ -148,6 +170,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
+  // ── Terminado confirmado por la API ──────────────────────────────────────
   if (effectiveStatus === 'FINISHED') {
     return (
       <div className='flex flex-col items-center gap-1 min-w-[90px]'>
@@ -162,6 +185,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
+  // ── En juego estimado (TIMED pero la hora ya pasó) ───────────────────────
   if (isEstLive) {
     return (
       <div className='flex flex-col items-center gap-0.5 min-w-[90px]'>
@@ -191,6 +215,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
+  // ── Terminado estimado (>110 min desde inicio, la API no actualizó) ───────
   if (isEstFinished) {
     return (
       <div className='flex flex-col items-center gap-1 min-w-[90px]'>
@@ -205,6 +230,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
+  // ── Aplazado / cancelado ─────────────────────────────────────────────────
   if (['POSTPONED', 'CANCELLED', 'SUSPENDED'].includes(effectiveStatus as string)) {
     const labels: Record<string, string> = {
       POSTPONED: 'Aplazado',
@@ -219,6 +245,7 @@ function MatchCenter({ match }: { match: Match }) {
     )
   }
 
+  // ── Programado ────────────────────────────────────────────────────────────
   return (
     <div className='flex flex-col items-center gap-0.5 min-w-[90px]'>
       <p className='text-[10px] text-gray-500 font-medium'>{formatDate(utcDate)}</p>
@@ -235,8 +262,8 @@ interface MatchCardProps {
 export default function MatchCard({ match, channel }: MatchCardProps) {
   const ft = match.score?.fullTime
   const hasScore = ft?.home != null || ft?.away != null
+  const stale = isStaleFromApi(match.status, match.utcDate)
   const effectiveStatus = getEffectiveStatus(match.status, match.utcDate, hasScore)
-  const stale = isStaleMatch(match.utcDate, match.status)
   const isLive = !stale && (effectiveStatus === 'IN_PLAY' || effectiveStatus === 'PAUSED' || effectiveStatus === 'ESTIMATED_LIVE')
 
   return (

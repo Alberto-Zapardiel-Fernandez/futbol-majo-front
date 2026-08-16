@@ -1,4 +1,3 @@
-// @ts-nocheck
 const CACHE_NAME = 'futbol-majo-v2' // ← incrementar versión en cada deploy importante
 const PRECACHE_URLS = ['/', '/standings']
 

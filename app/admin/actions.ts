@@ -6,7 +6,6 @@ import { createAdminClient } from '@/lib/supabase'
 import type { ChannelKey } from '@/lib/channels'
 import { revalidatePath } from 'next/cache'
 
-/** Verifica que quien llama es admin. Lanza error si no lo es. */
 async function requireAdmin() {
   const session = await auth()
   if (!isAdminEmail(session?.user?.email)) {
@@ -14,7 +13,6 @@ async function requireAdmin() {
   }
 }
 
-/** Guarda el canal de un partido en Supabase */
 export async function saveMatchChannel(matchId: number, channel: ChannelKey | null) {
   await requireAdmin()
   const db = createAdminClient()
@@ -33,7 +31,6 @@ export async function saveMatchChannel(matchId: number, channel: ChannelKey | nu
   revalidatePath('/admin')
 }
 
-/** Añade un email de admin a la tabla */
 export async function addAdminEmail(email: string) {
   await requireAdmin()
   const session = await auth()
@@ -51,7 +48,6 @@ export async function addAdminEmail(email: string) {
   revalidatePath('/admin')
 }
 
-/** Elimina un email de admin */
 export async function removeAdminEmail(email: string) {
   await requireAdmin()
   const db = createAdminClient()
@@ -59,10 +55,35 @@ export async function removeAdminEmail(email: string) {
   revalidatePath('/admin')
 }
 
-/** Obtiene todos los admins de la tabla */
 export async function getAdminEmails(): Promise<string[]> {
   await requireAdmin()
   const db = createAdminClient()
   const { data } = await db.from('admin_emails').select('email').order('created_at')
   return (data ?? []).map(r => r.email)
+}
+
+/**
+ * Dispara un sync inmediato de una liga.
+ * Se ejecuta en el servidor — la clave nunca se expone al cliente.
+ */
+export async function syncLeagueNow(league: string): Promise<string> {
+  await requireAdmin()
+
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL
+  const syncKey = process.env.ADMIN_SYNC_KEY // Solo server-side
+
+  if (!syncKey) {
+    throw new Error('ADMIN_SYNC_KEY no configurada en las variables de entorno del servidor')
+  }
+
+  const res = await fetch(`${backendUrl}/admin/sync-now?league=${league.toUpperCase()}&adminKey=${syncKey}`, { method: 'POST', cache: 'no-store' })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Error del backend: ${res.status} — ${text}`)
+  }
+
+  revalidatePath('/')
+  revalidatePath('/admin')
+  return `Sync completado para ${league.toUpperCase()}`
 }

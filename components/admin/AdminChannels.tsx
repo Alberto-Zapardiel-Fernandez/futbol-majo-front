@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import type { Match } from '@/types'
 import type { ChannelKey } from '@/lib/channels'
 import { CHANNEL_LIST } from '@/lib/channels'
-import { saveMatchChannel } from '@/app/admin/actions'
+import { saveMatchChannel, syncLeagueNow } from '@/app/admin/actions'
 import ChannelBadge from '@/components/ChannelBadge'
 import Image from 'next/image'
 
@@ -34,7 +34,6 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
 
-  // ── Guardar canal de un partido ──────────────────────────────────────────
   const handleChannelChange = (matchId: number, channel: string) => {
     setSaving(matchId)
     startTransition(async () => {
@@ -47,36 +46,35 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
     })
   }
 
-  // ── Sync manual urgente ──────────────────────────────────────────────────
+  /**
+   * Sync usando Server Action — la clave ADMIN_SYNC_KEY nunca sale del servidor.
+   */
   const handleForceSyncPD = async () => {
     setSyncing(true)
     setSyncMsg('')
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      const syncKey = process.env.NEXT_PUBLIC_ADMIN_SYNC_KEY
-      const res = await fetch(`${apiUrl}/admin/sync-now?league=PD&adminKey=${syncKey}`, { method: 'POST' })
-      const text = await res.text()
-      setSyncMsg(res.ok ? '✓ Sync completado' : `Error: ${text}`)
-      if (res.ok) router.refresh()
-    } catch {
-      setSyncMsg('Error de conexión con el backend')
+      const msg = await syncLeagueNow('PD')
+      setSyncMsg(`✓ ${msg}`)
+      router.refresh()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error desconocido'
+      setSyncMsg(`✗ ${msg}`)
     } finally {
       setSyncing(false)
-      setTimeout(() => setSyncMsg(''), 4000)
+      setTimeout(() => setSyncMsg(''), 5000)
     }
   }
 
   return (
     <div className='space-y-4'>
-      {/* Cabecera */}
+      {/* Cabecera con botón sync */}
       <div className='flex items-start justify-between gap-4'>
         <div>
           <h2 className='text-lg font-bold text-white'>Canales TV — LaLiga</h2>
           <p className='text-xs text-gray-500 mt-0.5'>Asigna el canal donde se verá cada partido.</p>
         </div>
 
-        {/* Botón sync urgente */}
-        <div className='flex flex-col items-end gap-1 shrink-0'>
+        <div className='flex flex-col items-end gap-1.5 shrink-0'>
           <button
             onClick={handleForceSyncPD}
             disabled={syncing}
@@ -97,7 +95,7 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
         </div>
       </div>
 
-      {/* Navegador de jornada */}
+      {/* Navegador jornada */}
       <div className='flex items-center gap-3 bg-gray-800/60 rounded-xl px-4 py-2.5 w-fit'>
         <a
           href={`/admin?seccion=canales&jornada=${Math.max(1, currentMatchDay - 1)}`}
@@ -119,7 +117,7 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
         </a>
       </div>
 
-      {/* Lista de partidos */}
+      {/* Partidos */}
       {matches.length === 0 ? (
         <div className='text-center py-12 text-gray-600'>
           <p className='text-3xl mb-3'>📭</p>
@@ -128,7 +126,7 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
       ) : (
         <div className='space-y-2'>
           {matches.map(match => {
-            const currentChannel = channelMap[match.id as keyof typeof channelMap] ?? ''
+            const currentChannel = (channelMap as Record<number, ChannelKey | undefined>)[match.id] ?? ''
             const isSaving = saving === match.id
 
             return (
@@ -136,7 +134,6 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
                 key={match.id}
                 className='flex items-center gap-3 bg-gray-800 border border-gray-700 rounded-xl p-3'
               >
-                {/* Escudos + nombres */}
                 <div className='flex items-center gap-2 flex-1 min-w-0'>
                   {match.homeTeam.crest && (
                     <Image
@@ -161,18 +158,10 @@ export default function AdminChannels({ matches, channelMap, currentMatchDay, to
                   )}
                 </div>
 
-                {/* Fecha y hora */}
                 <span className='text-xs text-gray-500 shrink-0 hidden sm:block'>{formatDateTime(match.utcDate)}</span>
 
-                {/* Badge canal actual */}
-                {currentChannel && (
-                  <ChannelBadge
-                    channel={currentChannel as ChannelKey}
-                    size='sm'
-                  />
-                )}
+                {currentChannel && <ChannelBadge channel={currentChannel as ChannelKey} />}
 
-                {/* Selector */}
                 <select
                   value={currentChannel}
                   onChange={e => handleChannelChange(match.id, e.target.value)}

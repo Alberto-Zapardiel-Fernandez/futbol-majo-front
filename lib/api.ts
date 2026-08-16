@@ -2,9 +2,6 @@ import type { League, Match, Page, StandingsResponse } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-/**
- * Lista de competiciones. Se cachea 24h — no cambia nunca.
- */
 export async function getLeagues(): Promise<League[]> {
   const response = await fetch(`${API_URL}/leagues`, {
     next: { revalidate: 86_400 }
@@ -21,9 +18,6 @@ export interface MatchFilters {
   size?: number
 }
 
-/**
- * Partidos. Sin caché — siempre frescos del backend.
- */
 export async function getMatches(filters: MatchFilters = {}): Promise<Page<Match>> {
   const params = new URLSearchParams()
   if (filters.competition) params.set('competition', filters.competition)
@@ -31,6 +25,8 @@ export async function getMatches(filters: MatchFilters = {}): Promise<Page<Match
   if (filters.status) params.set('status', filters.status)
   if (filters.page != null) params.set('page', String(filters.page))
   if (filters.size != null) params.set('size', String(filters.size))
+  // Ordenamos siempre por fecha para que el fallback también tenga orden lógico
+  params.set('sort', 'utcDate,asc')
 
   const response = await fetch(`${API_URL}/matches?${params}`, {
     cache: 'no-store'
@@ -40,22 +36,27 @@ export async function getMatches(filters: MatchFilters = {}): Promise<Page<Match
 }
 
 /**
- * Clasificación.
- *
- * Estrategia de caché en dos capas:
- * - Backend (Caffeine): cachea 60 min → protege el límite de la API externa.
- *   Se invalida con @CacheEvict cuando se hace sync de partidos.
- * - Next.js: revalida cada 5 min → garantiza que cuando el backend
- *   tenga datos nuevos (tras un sync), el frontend los recoge pronto.
- *
- * La combinación es eficiente: football-data.org se llama como máximo
- * 1 vez/hora por competición, pero el navegador siempre ve datos frescos.
+ * Obtiene partidos sin filtrar por jornada.
+ * Usado como fallback cuando una liga tiene datos pero
+ * el campo matchDay es NULL (leagues que aún no han empezado
+ * o el API gratuito no lo proporciona).
  */
+export async function getMatchesNoJornada(competition: string, size = 30): Promise<Page<Match>> {
+  const params = new URLSearchParams({
+    competition,
+    size: String(size),
+    sort: 'utcDate,asc'
+  })
+
+  const response = await fetch(`${API_URL}/matches?${params}`, {
+    cache: 'no-store'
+  })
+  if (!response.ok) throw new Error(`Error partidos sin jornada: ${response.status}`)
+  return response.json()
+}
+
 export async function getStandings(competition = 'PD'): Promise<StandingsResponse> {
-  const response = await fetch(
-    `${API_URL}/standings?competition=${competition}`,
-    { next: { revalidate: 300 } } // ← 5 min, antes era 3600 (1 hora)
-  )
+  const response = await fetch(`${API_URL}/standings?competition=${competition}`, { next: { revalidate: 300 } })
   if (!response.ok) throw new Error(`Error standings: ${response.status}`)
   return response.json()
 }

@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import type { Match, MatchStatus } from '@/types'
+import type { ChannelKey } from '@/lib/channels'
+import ChannelBadge from '@/components/ChannelBadge'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,6 +18,7 @@ function formatTime(utcDate: string): string {
   })
 }
 
+/** Fecha corta: "sáb. 15 ago." */
 function formatDate(utcDate: string): string {
   return new Date(utcDate).toLocaleDateString('es-ES', {
     weekday: 'short',
@@ -25,49 +28,16 @@ function formatDate(utcDate: string): string {
   })
 }
 
-/**
- * Calcula el minuto REAL del partido descontando el descanso.
- *
- * Problema anterior: (ahora - inicio) / 60 da el tiempo de PARED (wall time),
- * no el minuto real del partido. A los 70 min de pared el partido puede estar
- * en el minuto 55 real (45 primera parte + 15 descanso + 10 segunda parte).
- *
- * Solución:
- * - 0-48 min transcurridos  → primera parte, mostramos el minuto transcurrido
- * - 48-65 min transcurridos → zona de descanso, mostramos 45 y la barra se para
- * - 65+ min transcurridos   → segunda parte, restamos los ~17 min de descanso
- *
- * Si el status es PAUSED (backend lo confirma), siempre mostramos 45.
- */
 function getMatchMinute(utcDate: string, status: MatchStatus): number {
   if (status === 'PAUSED') return 45
   if (status !== 'IN_PLAY') return 0
 
   const elapsed = Math.floor((Date.now() - new Date(utcDate).getTime()) / 60_000)
-
-  const FIRST_HALF_END = 48 // 45 min + ~3 de añadido
-  const HALFTIME_END = 65 // 48 + ~17 min de descanso
-  const HALFTIME_LENGTH = 17 // minutos de descanso a descontar
-
-  if (elapsed <= FIRST_HALF_END) {
-    // Primera parte
-    return Math.max(elapsed, 1)
-  }
-
-  if (elapsed <= HALFTIME_END) {
-    // Zona de descanso — el backend aún no actualizó el status a PAUSED
-    // Mostramos 45 para no saltar al minuto 50/55 de golpe
-    return 45
-  }
-
-  // Segunda parte — restamos el descanso
-  const secondHalfMinute = 45 + (elapsed - HALFTIME_END)
-  return Math.min(secondHalfMinute, 90)
+  if (elapsed <= 48) return Math.max(elapsed, 1)
+  if (elapsed <= 65) return 45
+  return Math.min(45 + (elapsed - 65), 90)
 }
 
-/**
- * Detecta datos obsoletos: partido marcado IN_PLAY pero han pasado >130 min.
- */
 function isStaleMatch(utcDate: string, status: MatchStatus): boolean {
   if (status !== 'IN_PLAY' && status !== 'PAUSED') return false
   return Date.now() - new Date(utcDate).getTime() > 130 * 60 * 1000
@@ -96,12 +66,12 @@ function TeamCrest({ src, alt }: { src: string | null; alt: string }) {
 function ProgressBar({ minute, paused }: { minute: number; paused: boolean }) {
   const pct = Math.min((minute / 90) * 100, 100)
   return (
-    <div className='w-full bg-gray-700 rounded-full h-1.5 mt-2 relative overflow-visible'>
+    <div className='w-full bg-gray-700 rounded-full h-1.5 mt-1.5 relative overflow-visible'>
       <div
-        className={`h-full rounded-full transition-all duration-[30000ms] ease-linear ${paused ? 'bg-yellow-500' : 'bg-green-500'}`}
+        className={`h-full rounded-full transition-all duration-[30000ms] ease-linear
+          ${paused ? 'bg-yellow-500' : 'bg-green-500'}`}
         style={{ width: `${pct}%` }}
       />
-      {/* Punto pulsante solo cuando está en juego, no en descanso */}
       {!paused && (
         <div
           className='absolute top-1/2'
@@ -116,7 +86,7 @@ function ProgressBar({ minute, paused }: { minute: number; paused: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Centro de la tarjeta
+// Centro: hora/marcador/estado — ahora con fecha encima de la hora
 // ---------------------------------------------------------------------------
 
 function MatchCenter({ match }: { match: Match }) {
@@ -128,53 +98,42 @@ function MatchCenter({ match }: { match: Match }) {
 
   useEffect(() => {
     if (status !== 'IN_PLAY') return
-    const interval = setInterval(() => {
-      setMinute(getMatchMinute(utcDate, status))
-    }, 30_000)
+    const interval = setInterval(() => setMinute(getMatchMinute(utcDate, status)), 30_000)
     return () => clearInterval(interval)
   }, [status, utcDate])
 
   // Datos obsoletos
   if (isStaleMatch(utcDate, status)) {
     return (
-      <div className='flex flex-col items-center gap-1 min-w-[100px]'>
-        <div className='flex items-center gap-2'>
-          <span className='text-2xl font-black text-white tabular-nums'>{ft?.home ?? '-'}</span>
-          <span className='text-gray-500'>-</span>
-          <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? '-'}</span>
+      <div className='flex flex-col items-center gap-1 min-w-[90px]'>
+        <p className='text-[10px] text-gray-600'>{formatDate(utcDate)}</p>
+        <div className='flex items-center gap-1.5'>
+          <span className='text-xl font-black text-white tabular-nums'>{ft?.home ?? '-'}</span>
+          <span className='text-gray-500 text-sm'>-</span>
+          <span className='text-xl font-black text-white tabular-nums'>{ft?.away ?? '-'}</span>
         </div>
-        <span
-          className='text-xs text-gray-600 font-medium'
-          title='Actualizando...'
-        >
-          ↻ sincronizando
-        </span>
+        <span className='text-[10px] text-gray-600'>↻ sincronizando</span>
       </div>
     )
   }
 
-  // En juego o descanso
+  // En juego / descanso
   if (status === 'IN_PLAY' || isPaused) {
     return (
-      <div className='flex flex-col items-center gap-0.5 min-w-[100px]'>
-        <div className='flex items-center gap-2'>
+      <div className='flex flex-col items-center gap-0.5 min-w-[90px]'>
+        <div className='flex items-center gap-1.5'>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.home ?? 0}</span>
           <span className='text-gray-500'>-</span>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? 0}</span>
         </div>
-
         {isPaused ? (
-          <span className='text-xs font-semibold text-yellow-400 flex items-center gap-1'>
-            <span className='w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block' />
-            Descanso
-          </span>
+          <span className='text-[11px] font-semibold text-yellow-400'>⏸ Descanso</span>
         ) : (
-          <span className='text-xs font-semibold text-green-400 flex items-center gap-1'>
+          <span className='text-[11px] font-semibold text-green-400 flex items-center gap-1'>
             <span className='w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block' />
             {minute}&apos;
           </span>
         )}
-
         <ProgressBar
           minute={minute}
           paused={isPaused}
@@ -186,18 +145,19 @@ function MatchCenter({ match }: { match: Match }) {
   // Terminado
   if (status === 'FINISHED') {
     return (
-      <div className='flex flex-col items-center gap-1 min-w-[100px]'>
-        <div className='flex items-center gap-2'>
+      <div className='flex flex-col items-center gap-1 min-w-[90px]'>
+        <p className='text-[10px] text-gray-600'>{formatDate(utcDate)}</p>
+        <div className='flex items-center gap-1.5'>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.home ?? '-'}</span>
           <span className='text-gray-500'>-</span>
           <span className='text-2xl font-black text-white tabular-nums'>{ft?.away ?? '-'}</span>
         </div>
-        <span className='text-xs text-gray-500 font-medium'>Final</span>
+        <span className='text-[11px] text-gray-500 font-medium'>Final</span>
       </div>
     )
   }
 
-  // Aplazado / cancelado / suspendido
+  // Aplazado / cancelado
   if (['POSTPONED', 'CANCELLED', 'SUSPENDED'].includes(status)) {
     const labels: Record<string, string> = {
       POSTPONED: 'Aplazado',
@@ -205,15 +165,17 @@ function MatchCenter({ match }: { match: Match }) {
       SUSPENDED: 'Suspendido'
     }
     return (
-      <div className='min-w-[100px] text-center'>
-        <span className='text-xs font-semibold text-red-400 bg-red-900/30 px-2 py-1 rounded-full'>{labels[status]}</span>
+      <div className='min-w-[90px] text-center'>
+        <p className='text-[10px] text-gray-600 mb-1'>{formatDate(utcDate)}</p>
+        <span className='text-xs font-semibold text-red-400 bg-red-900/30 px-2 py-0.5 rounded-full'>{labels[status]}</span>
       </div>
     )
   }
 
-  // Programado
+  // Programado — fecha encima de la hora
   return (
-    <div className='flex flex-col items-center gap-1 min-w-[100px]'>
+    <div className='flex flex-col items-center gap-0.5 min-w-[90px]'>
+      <p className='text-[10px] text-gray-500 font-medium'>{formatDate(utcDate)}</p>
       <span className='text-2xl font-bold text-white tabular-nums'>{formatTime(utcDate)}</span>
     </div>
   )
@@ -223,39 +185,69 @@ function MatchCenter({ match }: { match: Match }) {
 // Componente principal
 // ---------------------------------------------------------------------------
 
-export default function MatchCard({ match }: { match: Match }) {
+interface MatchCardProps {
+  match: Match
+  channel?: ChannelKey | null
+}
+
+export default function MatchCard({ match, channel }: MatchCardProps) {
   const stale = isStaleMatch(match.utcDate, match.status)
   const isLive = (match.status === 'IN_PLAY' || match.status === 'PAUSED') && !stale
 
   return (
     <div
       className={`
-      border rounded-xl p-4 transition-all duration-200
+      border rounded-xl p-3 transition-all duration-200
       ${isLive ? 'bg-gray-800 border-green-800 shadow-lg shadow-green-950/50' : ''}
-      ${stale ? 'bg-gray-800 border-gray-700 opacity-75' : ''}
+      ${stale ? 'bg-gray-800 border-gray-700 opacity-70' : ''}
       ${!isLive && !stale ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : ''}
     `}
     >
-      <div className='flex justify-between items-center mb-3 text-xs text-gray-500'>
-        <span>Jornada {match.matchDay}</span>
-        <span>{formatDate(match.utcDate)}</span>
-      </div>
-      <div className='flex items-center gap-3'>
-        <div className='flex flex-col items-center gap-1.5 flex-1'>
+      {/* Solo la jornada arriba — la fecha se mueve al centro */}
+      <p className='text-[10px] text-gray-600 mb-2.5'>Jornada {match.matchDay}</p>
+
+      {/* Fila principal: equipo local — centro — equipo visitante — [canal] */}
+      <div className='flex items-center gap-2'>
+        {/* Equipo local */}
+        <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
           <TeamCrest
             src={match.homeTeam.crest}
             alt={match.homeTeam.name}
           />
-          <span className='text-xs text-gray-300 text-center leading-tight font-medium'>{match.homeTeam.shortName}</span>
+          <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full text-center'>
+            {match.homeTeam.shortName}
+          </span>
         </div>
+
+        {/* Centro: fecha + hora/marcador/estado */}
         <MatchCenter match={match} />
-        <div className='flex flex-col items-center gap-1.5 flex-1'>
+
+        {/* Equipo visitante */}
+        <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
           <TeamCrest
             src={match.awayTeam.crest}
             alt={match.awayTeam.name}
           />
-          <span className='text-xs text-gray-300 text-center leading-tight font-medium'>{match.awayTeam.shortName}</span>
+          <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full text-center'>
+            {match.awayTeam.shortName}
+          </span>
         </div>
+
+        {/*
+          Canal de TV — columna derecha, ocupa la mitad del alto de la card.
+          Solo visible si se asignó canal.
+        */}
+        {channel ? (
+          <div className='flex flex-col items-center justify-center self-stretch pl-2 border-l border-gray-700/60 min-w-[36px]'>
+            <ChannelBadge
+              channel={channel}
+              size='sm'
+            />
+          </div>
+        ) : (
+          // Espacio reservado para mantener el layout consistente
+          <div className='min-w-[36px]' />
+        )}
       </div>
     </div>
   )

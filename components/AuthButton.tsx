@@ -1,15 +1,12 @@
 /**
  * Botón de login/logout.
- *
- * Server Component — lee la sesión en el servidor para no parpadear.
- * Muestra:
- * - Sin sesión: botón "Entrar con Google"
- * - Con sesión: avatar + nombre + botón cerrar sesión
+ * Server Component — lee la sesión en el servidor.
  */
 
 import { auth, signIn, signOut } from '@/auth'
 import { isAdminEmail } from '@/lib/auth'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export default async function AuthButton() {
   const session = await auth()
@@ -26,15 +23,12 @@ export default async function AuthButton() {
       >
         <button
           type='submit'
-          className='flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700
-                     border border-gray-700 rounded-lg text-sm text-gray-300
-                     hover:text-white transition-all'
+          className='flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm text-gray-300 hover:text-white transition-all'
         >
-          {/* Logo de Google */}
           <svg
             viewBox='0 0 24 24'
             className='w-4 h-4'
-            aria-hidden
+            aria-hidden='true'
           >
             <path
               d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
@@ -61,19 +55,15 @@ export default async function AuthButton() {
 
   return (
     <div className='flex items-center gap-2'>
-      {/* Badge admin solo para administradores */}
       {isAdmin && (
-        <a
+        <Link
           href='/admin'
-          className='hidden md:flex items-center gap-1 px-2 py-1 bg-green-900/50
-                     border border-green-700 rounded-lg text-xs text-green-400
-                     hover:bg-green-800/50 transition-colors font-medium'
+          className='hidden md:flex items-center gap-1 px-2 py-1 bg-green-900/50 border border-green-700 rounded-lg text-xs text-green-400 hover:bg-green-800/50 transition-colors font-medium'
         >
           ⚙️ Admin
-        </a>
+        </Link>
       )}
 
-      {/* Avatar del usuario */}
       <div className='flex items-center gap-2'>
         {user.image ? (
           <Image
@@ -89,7 +79,6 @@ export default async function AuthButton() {
           </div>
         )}
 
-        {/* Cerrar sesión */}
         <form
           action={async () => {
             'use server'

@@ -1,0 +1,43 @@
+{
+  "name": "Fútbol Majo",
+  "short_name": "Fútbol Majo",
+  "description": "Sigue tus partidos y clasificaciones favoritas en tiempo real",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#030712",
+  "theme_color": "#111827",
+  "lang": "es",
+  "categories": ["sports", "news"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Partidos",
+      "short_name": "Partidos",
+      "description": "Ver partidos de hoy",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Clasificación",
+      "short_name": "Clasificación",
+      "description": "Ver tabla de clasificación",
+      "url": "/standings",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

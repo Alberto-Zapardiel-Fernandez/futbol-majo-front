@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo oscuro redondeado — el color del header de la app -->
+  <rect width="512" height="512" rx="110" fill="#111827"/>
+
+  <!-- Círculo verde — el campo -->
+  <circle cx="256" cy="230" r="170" fill="#15803d"/>
+
+  <!-- Línea central del campo -->
+  <line x1="86" y1="230" x2="426" y2="230"
+        stroke="rgba(255,255,255,0.25)" stroke-width="8"/>
+
+  <!-- Círculo central del campo -->
+  <circle cx="256" cy="230" r="55"
+          fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="8"/>
+
+  <!-- Letras FM sobre el campo -->
+  <text
+    x="256" y="263"
+    font-family="Arial Black, Arial, sans-serif"
+    font-size="130"
+    font-weight="900"
+    text-anchor="middle"
+    fill="white"
+    opacity="0.95"
+  >FM</text>
+
+  <!-- Texto "Fútbol Majo" debajo -->
+  <text
+    x="256" y="440"
+    font-family="Arial, sans-serif"
+    font-size="42"
+    font-weight="600"
+    text-anchor="middle"
+    fill="#9ca3af"
+    letter-spacing="2"
+  >FÚTBOL MAJO</text>
+</svg>

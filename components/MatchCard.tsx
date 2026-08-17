@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import type { Match, MatchStatus } from '@/types'
@@ -267,35 +268,45 @@ export default function MatchCard({ match, channel }: MatchCardProps) {
   const isLive = !stale && (effectiveStatus === 'IN_PLAY' || effectiveStatus === 'PAUSED' || effectiveStatus === 'ESTIMATED_LIVE')
 
   return (
-    <div
-      className={`
-      border rounded-xl p-3 transition-all duration-200
-      ${isLive && effectiveStatus !== 'ESTIMATED_LIVE' ? 'bg-gray-800 border-green-800 shadow-lg shadow-green-950/50' : ''}
-      ${isLive && effectiveStatus === 'ESTIMATED_LIVE' ? 'bg-gray-800 border-green-900/50 shadow-md shadow-green-950/30' : ''}
-      ${!isLive ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : ''}
-    `}
+    /*
+      Link envuelve toda la card para que sea clickable y navegue al detalle.
+      "block" es necesario para que el Link ocupe el ancho completo.
+      El cursor pointer lo añade el navegador automáticamente en links.
+    */
+    <Link
+      href={`/match/${match.id}`}
+      className='block'
     >
-      <p className='text-[10px] text-gray-600 mb-2.5'>Jornada {match.matchDay}</p>
-      <div className='flex items-center gap-2'>
-        <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
-          <TeamCrest
-            src={match.homeTeam.crest}
-            alt={match.homeTeam.name}
-          />
-          <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full'>{match.homeTeam.shortName}</span>
-        </div>
-        <MatchCenter match={match} />
-        <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
-          <TeamCrest
-            src={match.awayTeam.crest}
-            alt={match.awayTeam.name}
-          />
-          <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full'>{match.awayTeam.shortName}</span>
-        </div>
-        <div className='self-stretch flex items-center pl-2 border-l border-gray-700/50'>
-          {channel ? <ChannelBadge channel={channel} /> : <div className='w-12' />}
+      <div
+        className={`
+        border rounded-xl p-3 transition-all duration-200
+        ${isLive && effectiveStatus !== 'ESTIMATED_LIVE' ? 'bg-gray-800 border-green-800 shadow-lg shadow-green-950/50' : ''}
+        ${isLive && effectiveStatus === 'ESTIMATED_LIVE' ? 'bg-gray-800 border-green-900/50 shadow-md shadow-green-950/30' : ''}
+        ${!isLive ? 'bg-gray-800 border-gray-700 hover:border-gray-500' : ''}
+      `}
+      >
+        <p className='text-[10px] text-gray-600 mb-2.5'>Jornada {match.matchDay}</p>
+        <div className='flex items-center gap-2'>
+          <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
+            <TeamCrest
+              src={match.homeTeam.crest}
+              alt={match.homeTeam.name}
+            />
+            <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full'>{match.homeTeam.shortName}</span>
+          </div>
+          <MatchCenter match={match} />
+          <div className='flex flex-col items-center gap-1 flex-1 min-w-0'>
+            <TeamCrest
+              src={match.awayTeam.crest}
+              alt={match.awayTeam.name}
+            />
+            <span className='text-[11px] text-gray-300 text-center leading-tight font-medium truncate w-full'>{match.awayTeam.shortName}</span>
+          </div>
+          <div className='self-stretch flex items-center pl-2 border-l border-gray-700/50'>
+            {channel ? <ChannelBadge channel={channel} /> : <div className='w-12' />}
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }

@@ -1,8 +1,3 @@
-/**
- * Tipos para el detalle de partido.
- * Replica los records anidados de MatchDetailDTO.java.
- */
-
 export interface PlayerInfo {
   id: number
   name: string
@@ -33,4 +28,25 @@ export interface MatchDetailDTO {
     halfTime: { home: number | null; away: number | null } | null
   } | null
   lineups: Lineup[]
+}
+
+export interface SquadMember {
+  id: number
+  name: string
+  position: string | null
+  dateOfBirth: string | null
+  nationality: string | null
+  shirtNumber: number | null
+}
+
+export interface TeamDetail {
+  id: number
+  name: string
+  shortName: string
+  crest: string
+  venue: string | null
+  founded: number | null
+  clubColors: string | null
+  website: string | null
+  squad: SquadMember[]
 }

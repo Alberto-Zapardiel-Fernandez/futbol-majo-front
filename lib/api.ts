@@ -1,4 +1,5 @@
 import type { League, Match, Page, StandingsResponse } from '@/types'
+import { TeamDetail } from '@/types/detail'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -63,5 +64,17 @@ export async function getLiveMatches(): Promise<Match[]> {
 export async function getStandings(competition = 'PD'): Promise<StandingsResponse> {
   const response = await fetch(`${API_URL}/standings?competition=${competition}`, { next: { revalidate: 300 } })
   if (!response.ok) throw new Error(`Error standings: ${response.status}`)
+  return response.json()
+}
+
+/**
+ * Detalle de un equipo: plantilla, estadio y colores del club.
+ * Cacheado 1 hora en Next.js (el backend también lo cachea 60 min).
+ */
+export async function getTeamDetail(teamId: number): Promise<TeamDetail> {
+  const response = await fetch(`${API_URL}/team/${teamId}`, {
+    next: { revalidate: 3_600 }
+  })
+  if (!response.ok) throw new Error(`Error team detail: ${response.status}`)
   return response.json()
 }

@@ -5,14 +5,50 @@ import { usePathname } from 'next/navigation'
 
 interface BottomNavProps {
   isAdmin?: boolean
+  liveCount?: number // ← partidos realmente en vivo ahora
 }
 
-const getNavItems = (isAdmin: boolean) => {
-  const items = [
-    {
-      href: '/',
-      label: 'Partidos',
-      icon: (active: boolean) => (
+const getNavItems = (isAdmin: boolean, liveCount: number) => [
+  {
+    href: '/',
+    label: 'Partidos',
+    icon: (active: boolean) => (
+      <svg
+        viewBox='0 0 24 24'
+        className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
+        fill='none'
+        stroke='currentColor'
+        strokeWidth={active ? 2.5 : 1.8}
+      >
+        <circle
+          cx='12'
+          cy='12'
+          r='9'
+        />
+        <path
+          d='M12 3c0 0-2 3-2 9s2 9 2 9'
+          strokeLinecap='round'
+        />
+        <path
+          d='M3 12h18'
+          strokeLinecap='round'
+        />
+        <path
+          d='M5 7c1.5 1 4 1.5 7 1.5S17.5 8 19 7'
+          strokeLinecap='round'
+        />
+        <path
+          d='M5 17c1.5-1 4-1.5 7-1.5S17.5 16 19 17'
+          strokeLinecap='round'
+        />
+      </svg>
+    )
+  },
+  {
+    href: '/live',
+    label: 'En Vivo',
+    icon: (active: boolean) => (
+      <div className='relative'>
         <svg
           viewBox='0 0 24 24'
           className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
@@ -25,116 +61,81 @@ const getNavItems = (isAdmin: boolean) => {
             cy='12'
             r='9'
           />
-          <path
-            d='M12 3c0 0-2 3-2 9s2 9 2 9'
-            strokeLinecap='round'
-          />
-          <path
-            d='M3 12h18'
-            strokeLinecap='round'
-          />
-          <path
-            d='M5 7c1.5 1 4 1.5 7 1.5S17.5 8 19 7'
-            strokeLinecap='round'
-          />
-          <path
-            d='M5 17c1.5-1 4-1.5 7-1.5S17.5 16 19 17'
-            strokeLinecap='round'
+          <polygon
+            points='10,8 16,12 10,16'
+            fill='currentColor'
+            stroke='none'
           />
         </svg>
-      )
-    },
-    {
-      href: '/live',
-      label: 'En Vivo',
-      icon: (active: boolean) => (
-        <div className='relative'>
-          <svg
-            viewBox='0 0 24 24'
-            className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
-            fill='none'
-            stroke='currentColor'
-            strokeWidth={active ? 2.5 : 1.8}
-          >
-            {/* Icono play / señal live */}
-            <circle
-              cx='12'
-              cy='12'
-              r='9'
-            />
-            <polygon
-              points='10,8 16,12 10,16'
-              fill='currentColor'
-              stroke='none'
-            />
-          </svg>
-          {/* Punto rojo pulsante — siempre visible en la tab Live */}
-          <span className='absolute -top-0.5 -right-0.5 w-2 h-2'>
-            <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75' />
-            <span className='relative inline-flex rounded-full h-2 w-2 bg-red-500' />
+
+        {/* Badge: número si hay partidos live, punto gris si no */}
+        {liveCount > 0 ? (
+          <span className='absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none'>
+            {liveCount}
           </span>
-        </div>
-      )
-    },
-    {
-      href: '/standings',
-      label: 'Clasificación',
-      icon: (active: boolean) => (
-        <svg
-          viewBox='0 0 24 24'
-          className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
-          fill='none'
-          stroke='currentColor'
-          strokeWidth={active ? 2.5 : 1.8}
-        >
-          <rect
-            x='3'
-            y='3'
-            width='18'
-            height='18'
-            rx='2'
-          />
-          <path
-            d='M3 9h18M3 15h18M9 9v9'
-            strokeLinecap='round'
-          />
-        </svg>
-      )
-    }
-  ]
+        ) : (
+          <span className='absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-gray-600' />
+        )}
+      </div>
+    )
+  },
+  {
+    href: '/standings',
+    label: 'Clasificación',
+    icon: (active: boolean) => (
+      <svg
+        viewBox='0 0 24 24'
+        className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
+        fill='none'
+        stroke='currentColor'
+        strokeWidth={active ? 2.5 : 1.8}
+      >
+        <rect
+          x='3'
+          y='3'
+          width='18'
+          height='18'
+          rx='2'
+        />
+        <path
+          d='M3 9h18M3 15h18M9 9v9'
+          strokeLinecap='round'
+        />
+      </svg>
+    )
+  },
+  ...(isAdmin
+    ? [
+        {
+          href: '/admin',
+          label: 'Admin',
+          icon: (active: boolean) => (
+            <svg
+              viewBox='0 0 24 24'
+              className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
+              fill='none'
+              stroke='currentColor'
+              strokeWidth={active ? 2.5 : 1.8}
+            >
+              <circle
+                cx='12'
+                cy='8'
+                r='4'
+              />
+              <path
+                d='M4 20c0-4 3.6-7 8-7s8 3 8 7'
+                strokeLinecap='round'
+              />
+            </svg>
+          )
+        }
+      ]
+    : [])
+]
 
-  if (isAdmin) {
-    items.push({
-      href: '/admin',
-      label: 'Admin',
-      icon: (active: boolean) => (
-        <svg
-          viewBox='0 0 24 24'
-          className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
-          fill='none'
-          stroke='currentColor'
-          strokeWidth={active ? 2.5 : 1.8}
-        >
-          <circle
-            cx='12'
-            cy='8'
-            r='4'
-          />
-          <path
-            d='M4 20c0-4 3.6-7 8-7s8 3 8 7'
-            strokeLinecap='round'
-          />
-        </svg>
-      )
-    })
-  }
-
-  return items
-}
-
-export default function BottomNav({ isAdmin = false }: BottomNavProps) {
+export default function BottomNav({ isAdmin = false, liveCount = 0 }: BottomNavProps) {
   const pathname = usePathname()
-  const navItems = getNavItems(isAdmin)
+  const navItems = getNavItems(isAdmin, liveCount)
 
   return (
     <nav

@@ -45,6 +45,38 @@ const getNavItems = (isAdmin: boolean) => {
       )
     },
     {
+      href: '/live',
+      label: 'En Vivo',
+      icon: (active: boolean) => (
+        <div className='relative'>
+          <svg
+            viewBox='0 0 24 24'
+            className={`w-6 h-6 ${active ? 'text-green-400' : 'text-gray-500'}`}
+            fill='none'
+            stroke='currentColor'
+            strokeWidth={active ? 2.5 : 1.8}
+          >
+            {/* Icono play / señal live */}
+            <circle
+              cx='12'
+              cy='12'
+              r='9'
+            />
+            <polygon
+              points='10,8 16,12 10,16'
+              fill='currentColor'
+              stroke='none'
+            />
+          </svg>
+          {/* Punto rojo pulsante — siempre visible en la tab Live */}
+          <span className='absolute -top-0.5 -right-0.5 w-2 h-2'>
+            <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75' />
+            <span className='relative inline-flex rounded-full h-2 w-2 bg-red-500' />
+          </span>
+        </div>
+      )
+    },
+    {
       href: '/standings',
       label: 'Clasificación',
       icon: (active: boolean) => (
@@ -71,7 +103,6 @@ const getNavItems = (isAdmin: boolean) => {
     }
   ]
 
-  // La pestaña Admin solo se añade si el usuario es admin
   if (isAdmin) {
     items.push({
       href: '/admin',
@@ -91,10 +122,6 @@ const getNavItems = (isAdmin: boolean) => {
           />
           <path
             d='M4 20c0-4 3.6-7 8-7s8 3 8 7'
-            strokeLinecap='round'
-          />
-          <path
-            d='M16 3.5l1 1M20 7l-1 1M16.5 12l1-1M20 7h1M15 7h-1'
             strokeLinecap='round'
           />
         </svg>

@@ -12,6 +12,7 @@ export interface Score {
 
 export interface Match {
   id: number
+  competitionCode: string // ← nuevo: para agrupar por liga en /live
   status: MatchStatus
   utcDate: string
   matchDay: number
@@ -20,21 +21,7 @@ export interface Match {
   score: Score | null
 }
 
-/**
- * Estados posibles de un partido según la API de football-data.org.
- * OJO: la API a veces devuelve "LIVE" en lugar de "IN_PLAY".
- * Los tratamos igual en toda la lógica.
- */
-export type MatchStatus =
-  | 'SCHEDULED'
-  | 'TIMED'
-  | 'IN_PLAY'
-  | 'LIVE' // ← equivale a IN_PLAY, lo devuelve el tier gratuito
-  | 'PAUSED'
-  | 'FINISHED'
-  | 'POSTPONED'
-  | 'CANCELLED'
-  | 'SUSPENDED'
+export type MatchStatus = 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'LIVE' | 'PAUSED' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' | 'SUSPENDED'
 
 export interface League {
   code: string

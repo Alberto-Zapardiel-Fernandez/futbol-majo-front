@@ -241,9 +241,7 @@ function SquadColumn({
           <span className={`text-xs text-gray-300 truncate flex-1 ${isRight ? 'text-right' : 'text-left'}`}>{player.name.split(' ').pop()}</span>
 
           {/* Posición */}
-          {player.position && (
-            <span className='text-[9px] text-gray-600 bg-gray-700/80 px-1 py-0.5 rounded shrink-0 font-mono'>{posLabel(player.position)}</span>
-          )}
+          {player.position && <PosBadge position={player.position} />}
         </div>
       ))}
     </div>
@@ -263,6 +261,23 @@ function formatDate(utcDate: string): string {
     minute: '2-digit',
     timeZone: 'Europe/Madrid'
   })
+}
+/** Badge de posición con color según el rol del jugador */
+function PosBadge({ position }: { position: string | null }) {
+  if (!position) return null
+
+  const label = posLabel(position)
+
+  const colorClass =
+    position === 'Goalkeeper'
+      ? 'bg-green-700/90 text-green-100'
+      : position.includes('Back') || position === 'Defence'
+        ? 'bg-purple-700/90 text-purple-100'
+        : position.includes('Midfield') || position === 'Midfield'
+          ? 'bg-blue-700/90 text-blue-100'
+          : 'bg-red-700/90 text-red-100' // Forwards y extremos
+
+  return <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 font-mono font-bold ${colorClass}`}>{label}</span>
 }
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -426,11 +441,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 >
                   <span className='text-[10px] text-gray-600 w-5 text-center tabular-nums shrink-0'>{player.shirtNumber}</span>
                   <span className='text-xs text-gray-300 truncate flex-1'>{player.name.split(' ').pop()}</span>
-                  {player.position && (
-                    <span className='text-[9px] text-gray-600 bg-gray-700/80 px-1 py-0.5 rounded shrink-0 font-mono'>
-                      {posLabel(player.position)}
-                    </span>
-                  )}
+                  {player.position && <PosBadge position={player.position} />}
                 </div>
               ))}
             </div>
@@ -465,11 +476,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 >
                   <span className='text-[10px] text-gray-600 w-5 text-center tabular-nums shrink-0'>{player.shirtNumber}</span>
                   <span className='text-xs text-gray-300 truncate flex-1 text-right'>{player.name.split(' ').pop()}</span>
-                  {player.position && (
-                    <span className='text-[9px] text-gray-600 bg-gray-700/80 px-1 py-0.5 rounded shrink-0 font-mono'>
-                      {posLabel(player.position)}
-                    </span>
-                  )}
+                  {player.position && <PosBadge position={player.position} />}
                 </div>
               ))}
             </div>

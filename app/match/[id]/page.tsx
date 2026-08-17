@@ -83,14 +83,19 @@ function posLabel(pos: string | null): string {
 }
 
 function sortSquad(squad: TeamDetail['squad']) {
-  return [...squad].sort((a, b) => {
-    const ia = POSITION_ORDER.indexOf(a.position ?? '')
-    const ib = POSITION_ORDER.indexOf(b.position ?? '')
-    if (ia === -1 && ib === -1) return 0
-    if (ia === -1) return 1
-    if (ib === -1) return -1
-    return ia - ib
-  })
+  return (
+    [...squad]
+      // Filtramos jugadores sin dorsal — suelen ser de cantera o filial
+      .filter(p => p.shirtNumber != null)
+      .sort((a, b) => {
+        const ia = POSITION_ORDER.indexOf(a.position ?? '')
+        const ib = POSITION_ORDER.indexOf(b.position ?? '')
+        if (ia === -1 && ib === -1) return 0
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      })
+  )
 }
 
 // ---------------------------------------------------------------------------

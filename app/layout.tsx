@@ -63,6 +63,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   >
                     Partidos
                   </Link>
+                  {/* En Vivo — con punto rojo para llamar la atención */}
+                  <Link
+                    href='/live'
+                    className='px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center gap-1.5'
+                  >
+                    <span className='relative flex h-2 w-2'>
+                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75' />
+                      <span className='relative inline-flex rounded-full h-2 w-2 bg-red-500' />
+                    </span>
+                    En Vivo
+                  </Link>
                   <Link
                     href='/standings'
                     className='px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-all'

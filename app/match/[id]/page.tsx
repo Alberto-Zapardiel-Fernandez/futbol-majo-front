@@ -86,7 +86,7 @@ function sortSquad(squad: TeamDetail['squad']) {
   return (
     [...squad]
       // Filtramos jugadores sin dorsal — suelen ser de cantera o filial
-      .filter(p => p.shirtNumber != null)
+      .filter(p => p.shirtNumber != null && p.shirtNumber <= 30)
       .sort((a, b) => {
         const ia = POSITION_ORDER.indexOf(a.position ?? '')
         const ib = POSITION_ORDER.indexOf(b.position ?? '')
